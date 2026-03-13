@@ -1,5 +1,10 @@
 #!/usr/bin/with-contenv bashio
 
+echo "Python im venv:"
+ls -l /opt/venv/bin/python
+echo "Uvicorn im venv:"
+ls -l /opt/venv/bin/uvicorn || true
+
 cat <<'PY' > /app/server.py
 from fastapi import FastAPI
 
@@ -10,4 +15,4 @@ def root():
     return {"status": "running"}
 PY
 
-python3 -m uvicorn server:app --host 0.0.0.0 --port 8000 --app-dir /app
+exec /opt/venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 8000 --app-dir /app

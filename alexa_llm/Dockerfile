@@ -12,4 +12,4 @@ RUN chmod a+x /run.sh \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
     && /opt/venv/bin/pip install --no-cache-dir fastapi uvicorn
 
-CMD [ "/run.sh" ]
+CMD ["/run.sh"]
