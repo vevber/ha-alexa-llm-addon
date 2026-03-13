@@ -1,25 +1,48 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-import openai
-import os
+from fastapi import FastAPI, Request
 
 app = FastAPI()
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+@app.get("/")
+def root():
+    return {"status": "running"}
 
-class Question(BaseModel):
-    question: str
+@app.post("/alexa")
+async def alexa(request: Request):
+    data = await request.json()
 
-@app.post("/ask")
-async def ask(q: Question):
+    request_type = data.get("request", {}).get("type")
 
-    prompt = f"Beantworte kurz und verständlich: {q.question}"
+    if request_type == "LaunchRequest":
+        return {
+            "version": "1.0",
+            "response": {
+                "outputSpeech": {
+                    "type": "PlainText",
+                    "text": "Hallo. Ich bin bereit."
+                },
+                "shouldEndSession": False
+            }
+        }
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}]
-    )
+    if request_type == "IntentRequest":
+        return {
+            "version": "1.0",
+            "response": {
+                "outputSpeech": {
+                    "type": "PlainText",
+                    "text": "Die Verbindung zu deinem Home Assistant Server funktioniert."
+                },
+                "shouldEndSession": True
+            }
+        }
 
-    answer = response["choices"][0]["message"]["content"]
-
-    return {"answer": answer}
+    return {
+        "version": "1.0",
+        "response": {
+            "outputSpeech": {
+                "type": "PlainText",
+                "text": "Unbekannte Anfrage."
+            },
+            "shouldEndSession": True
+        }
+    }
