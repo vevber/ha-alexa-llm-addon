@@ -13,14 +13,19 @@ SYSTEM_PROMPT = (
 )
 
 
-def alexa_response(text: str, should_end_session: bool = True) -> dict:
-    return {
+def alexa_response(text: str, should_end_session: bool = True, reprompt: str = "") -> dict:
+    response = {
         "version": "1.0",
         "response": {
             "outputSpeech": {"type": "PlainText", "text": text},
             "shouldEndSession": should_end_session,
         },
     }
+    if reprompt and not should_end_session:
+        response["response"]["reprompt"] = {
+            "outputSpeech": {"type": "PlainText", "text": reprompt}
+        }
+    return response
 
 
 def get_slot_value(intent: dict, *slot_names: str) -> str:
@@ -30,6 +35,13 @@ def get_slot_value(intent: dict, *slot_names: str) -> str:
         value = slot.get("value", "").strip()
         if value:
             return value
+
+    # Fallback: use the first non-empty slot value in case slot names differ.
+    for slot in slots.values():
+        value = str(slot.get("value", "")).strip()
+        if value:
+            return value
+
     return ""
 
 
@@ -71,7 +83,11 @@ async def alexa(request: Request) -> dict:
     request_type = data.get("request", {}).get("type")
 
     if request_type == "LaunchRequest":
-        return alexa_response("Hallo. Stell mir einfach eine Frage.", should_end_session=False)
+        return alexa_response(
+            "Hallo. Stell mir einfach eine Frage.",
+            should_end_session=False,
+            reprompt="Zum Beispiel: Was ist eine Quersumme?",
+        )
 
     if request_type != "IntentRequest":
         return alexa_response("Unbekannte Anfrage.")
@@ -82,19 +98,36 @@ async def alexa(request: Request) -> dict:
     if intent_name == "AskAnythingIntent":
         question = get_slot_value(intent, "question", "query")
         if not question:
-            return alexa_response("Ich habe keine Frage erkannt. Bitte versuch es noch einmal.")
+            return alexa_response(
+                "Ich habe keine Frage erkannt. Frag bitte noch einmal, zum Beispiel: Was ist eine Quersumme?",
+                should_end_session=False,
+                reprompt="Frag mich zum Beispiel: Was ist eine Quersumme?",
+            )
         try:
             return alexa_response(ask_llm(question))
-        except Exception:
+        except Exception as exc:
+            message = str(exc).lower()
+            if "insufficient_quota" in message or "exceeded your current quota" in message:
+                return alexa_response(
+                    "Das OpenAI-Konto hat aktuell kein Guthaben. Bitte pruefe Billing und probiere es erneut."
+                )
             return alexa_response(
                 "Die Anfrage an das Sprachmodell hat gerade nicht funktioniert. Bitte versuch es gleich noch einmal."
             )
 
     if intent_name in ["AMAZON.FallbackIntent"]:
-        return alexa_response("Bitte stelle eine konkrete Frage, zum Beispiel: Was ist eine Quersumme?")
+        return alexa_response(
+            "Bitte stelle eine konkrete Frage, zum Beispiel: Was ist eine Quersumme?",
+            should_end_session=False,
+            reprompt="Stell eine Frage wie: Was ist eine Quersumme?",
+        )
 
     if intent_name in ["AMAZON.HelpIntent"]:
-        return alexa_response("Du kannst mich zum Beispiel fragen: Was ist eine Quersumme?")
+        return alexa_response(
+            "Du kannst mich zum Beispiel fragen: Was ist eine Quersumme?",
+            should_end_session=False,
+            reprompt="Frag zum Beispiel: Was ist eine Quersumme?",
+        )
 
     if intent_name in ["AMAZON.StopIntent", "AMAZON.CancelIntent"]:
         return alexa_response("Okay.")
