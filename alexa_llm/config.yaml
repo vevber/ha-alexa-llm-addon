@@ -1,0 +1,12 @@
+name: "Alexa LLM Server"
+version: "1.0.0"
+slug: "alexa_llm"
+description: "LLM backend for Alexa skill"
+arch:
+  - aarch64
+  - amd64
+startup: services
+boot: auto
+ports:
+  8000/tcp: 8000
+init: false
