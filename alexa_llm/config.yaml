@@ -1,5 +1,5 @@
 name: "Alexa LLM Server"
-version: "1.0.5"
+version: "1.1.0"
 slug: "alexa_llm"
 description: "LLM backend for Alexa skill"
 arch:
@@ -10,3 +10,13 @@ boot: auto
 ports:
   8000/tcp: 8000
 init: false
+options:
+  openai_api_key: ""
+  openai_model: "gpt-4o-mini"
+  openai_max_tokens: 180
+  openai_temperature: 0.3
+schema:
+  openai_api_key: password
+  openai_model: str
+  openai_max_tokens: int(32,512)
+  openai_temperature: float(0,1)
