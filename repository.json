@@ -1,1 +1,5 @@
-
+{
+  "name": "Alexa LLM Add-ons",
+  "url": "https://github.com/vevber/ha-alexa-llm-addon",
+  "maintainer": "vevber"
+}
