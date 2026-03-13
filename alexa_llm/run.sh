@@ -10,6 +10,18 @@ from fastapi import FastAPI, Request
 
 app = FastAPI()
 
+def alexa_response(text: str, end_session: bool = True):
+    return {
+        "version": "1.0",
+        "response": {
+            "outputSpeech": {
+                "type": "PlainText",
+                "text": text
+            },
+            "shouldEndSession": end_session
+        }
+    }
+
 @app.get("/")
 def root():
     return {"status": "running"}
@@ -21,39 +33,43 @@ async def alexa(request: Request):
     request_type = data.get("request", {}).get("type")
 
     if request_type == "LaunchRequest":
-        return {
-            "version": "1.0",
-            "response": {
-                "outputSpeech": {
-                    "type": "PlainText",
-                    "text": "Hallo. Ich bin bereit."
-                },
-                "shouldEndSession": False
-            }
-        }
+        return alexa_response("Hallo. Stell mir einfach eine Frage.", False)
 
     if request_type == "IntentRequest":
-        return {
-            "version": "1.0",
-            "response": {
-                "outputSpeech": {
-                    "type": "PlainText",
-                    "text": "Die Verbindung zu deinem Home Assistant Server funktioniert."
-                },
-                "shouldEndSession": True
-            }
-        }
+        intent = data.get("request", {}).get("intent", {})
+        intent_name = intent.get("name", "")
+        slots = intent.get("slots", {})
 
-    return {
-        "version": "1.0",
-        "response": {
-            "outputSpeech": {
-                "type": "PlainText",
-                "text": "Unbekannte Anfrage."
-            },
-            "shouldEndSession": True
-        }
-    }
+        question = ""
+        if "question" in slots:
+            question = slots["question"].get("value", "")
+
+        if intent_name == "AskAnythingIntent":
+            if not question:
+                return alexa_response("Ich habe keine Frage erkannt.")
+
+            q = question.lower().strip()
+
+            if "quersumme" in q:
+                return alexa_response(
+                    "Die Quersumme ist die Summe aller Ziffern einer Zahl. "
+                    "Bei 123 ist die Quersumme zum Beispiel 1 plus 2 plus 3, also 6."
+                )
+
+            if "hallo" in q:
+                return alexa_response("Hallo.")
+
+            return alexa_response(f"Du hast gefragt: {question}")
+
+        if intent_name == "AMAZON.HelpIntent":
+            return alexa_response(
+                "Du kannst mich zum Beispiel fragen: Was ist eine Quersumme?"
+            )
+
+        if intent_name in ["AMAZON.StopIntent", "AMAZON.CancelIntent"]:
+            return alexa_response("Okay.")
+
+    return alexa_response("Das habe ich nicht verstanden.")
 PY
 
 exec /opt/venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 8000 --app-dir /app

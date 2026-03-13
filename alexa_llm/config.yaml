@@ -1,5 +1,5 @@
 name: "Alexa LLM Server"
-version: "1.0.4"
+version: "1.0.5"
 slug: "alexa_llm"
 description: "LLM backend for Alexa skill"
 arch:
