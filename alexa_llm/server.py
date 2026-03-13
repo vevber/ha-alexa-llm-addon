@@ -72,6 +72,13 @@ def ask_llm(question: str) -> str:
     return " ".join(answer.split())[:450] or "Dazu habe ich gerade keine Antwort."
 
 
+def normalize_question(question: str) -> str:
+    q = question.lower().strip()
+    # Alexa transcripts may contain spaced abbreviations like "k. i.".
+    q = q.replace("k. i.", "ki").replace("k i", "ki")
+    return q
+
+
 @app.get("/")
 def root() -> dict:
     return {"status": "running"}
@@ -103,16 +110,43 @@ async def alexa(request: Request) -> dict:
                 should_end_session=False,
                 reprompt="Frag mich zum Beispiel: Was ist eine Quersumme?",
             )
+
+        normalized = normalize_question(question)
+        active_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+        if "mit was fuer einer ki rede ich" in normalized or "mit welcher ki rede ich" in normalized:
+            return alexa_response(
+                f"Du redest gerade mit dem Modell {active_model} ueber dein OpenAI-Konto.",
+                should_end_session=False,
+                reprompt="Stell mir gern noch eine Frage.",
+            )
+
+        if "welche ki modelle" in normalized or "ki modelle gibt es" in normalized:
+            return alexa_response(
+                "Es gibt zum Beispiel GPT 4o mini und GPT 4.1 von OpenAI, Claude Modelle von Anthropic, "
+                "Gemini von Google und Llama Modelle von Meta.",
+                should_end_session=False,
+                reprompt="Wenn du willst, erklaere ich dir die Unterschiede.",
+            )
+
         try:
-            return alexa_response(ask_llm(question))
+            return alexa_response(
+                ask_llm(question),
+                should_end_session=False,
+                reprompt="Stell mir gern noch eine Frage.",
+            )
         except Exception as exc:
             message = str(exc).lower()
             if "insufficient_quota" in message or "exceeded your current quota" in message:
                 return alexa_response(
-                    "Das OpenAI-Konto hat aktuell kein Guthaben. Bitte pruefe Billing und probiere es erneut."
+                    "Das OpenAI-Konto hat aktuell kein Guthaben. Bitte pruefe Billing und probiere es erneut.",
+                    should_end_session=False,
+                    reprompt="Sobald es wieder geht, stelle deine Frage erneut.",
                 )
             return alexa_response(
-                "Die Anfrage an das Sprachmodell hat gerade nicht funktioniert. Bitte versuch es gleich noch einmal."
+                "Die Anfrage an das Sprachmodell hat gerade nicht funktioniert. Bitte versuch es gleich noch einmal.",
+                should_end_session=False,
+                reprompt="Du kannst die Frage sofort wiederholen.",
             )
 
     if intent_name in ["AMAZON.FallbackIntent"]:
